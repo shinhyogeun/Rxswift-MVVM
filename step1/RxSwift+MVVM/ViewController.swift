@@ -19,7 +19,7 @@ class ViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
-            self?.timerLabel.textㅕㅇ ㅇ = "\(Date().timeIntervalSince1970)"
+            self?.timerLabel.text = "\(Date().timeIntervalSince1970)"
         }
     }
 
@@ -36,20 +36,20 @@ class ViewController: UIViewController {
 
     // RxSwift유도 과정
     
-//    class 나중에생기는데이터<T> {
-//        // task가 실행된 다음에 f가 실행된다.
-//        private let task : (@escaping (T) -> Void) -> Void
-//
-//        // 나중에생기는데이터가 만들어지면 task가 지정된다.
-//        init(task : @escaping (@escaping (T) -> Void) -> Void) {
-//            self.task = task
-//        }
-//
-//        // 나중에오면 task를 실행한다.
-//        func 나중에오면(_ f: @escaping (T) -> Void) {
-//            task(f)
-//        }
-//    }
+    class 나중에생기는데이터<T> {
+        // task가 실행된 다음에 f가 실행된다.
+        private let task : (@escaping (T) -> Void) -> Void
+
+        // 나중에생기는데이터가 만들어지면 task가 지정된다.
+        init(task : @escaping (@escaping (T) -> Void) -> Void) {
+            self.task = task
+        }
+
+        // 나중에오면 task를 실행한다.
+        func 나중에오면(_ f: @escaping (T) -> Void) {
+            task(f)
+        }
+    }
     
     @IBOutlet var activityIndicator: UIActivityIndicatorView!
 
@@ -57,43 +57,56 @@ class ViewController: UIViewController {
         editView.text = ""
         setVisibleWithAnimation(activityIndicator, true)
         
-        downloadJSON(MEMBER_LIST_URL)
-            .subscribe { event in
-                switch event{
-                case .next(let json):
-                    self.editView.text = json
-                    self.setVisibleWithAnimation(self.activityIndicator, false)
-                case .completed:
-                    break
-                case .error(_):
-                    break
-                }
+        downloadJSON(MEMBER_LIST_URL).나중에오면 { dataString in
+            self.editView.text = dataString
+            self.setVisibleWithAnimation(self.activityIndicator, false)
         }
-        
     }
     
-    func downloadJSON(_ URLAddress: String) -> Observable<String?> {
-        return Observable.create() { emitter in
-            let url = URL(string : URLAddress)!
-            let task = URLSession.shared.dataTask(with: url) { (data, _, err) in
-                guard err == nil else {
-                    emitter.onError(err!)
-                    return 
-                }
+    func downloadJSON(_ URLAddress: String) -> 나중에생기는데이터<String?> {
+        // 본체
+        return 나중에생기는데이터 { f in
+            // 할일들을 적어라
+            DispatchQueue.global().async {
+                let url = URL(string: URLAddress)!
+                let data = try! Data(contentsOf: url)
+                let json = String(data:data,encoding: .utf8)
                 
-                if let data = data , let json = String(data:data,encoding: .utf8) {
-                    emitter.onNext(json)
+                DispatchQueue.main.async {
+                    f(json)
                 }
-                
-                emitter.onCompleted()
             }
-            
-            task.resume()
-            
-            return Disposables.create() {
-                task.cancel()
-            }
+//            let url = URL(string : URLAddress)!
+//            URLSession.shared.dataTask(with: url) { (data, _, err) in
+//                if let data = data, let json = String(data:data,encoding: .utf8){
+//                    DispatchQueue.main.async {
+//                        f(json)
+//                    }
+//                }
+//            }
         }
+//
+//        return Observable.create() { emitter in
+//            let url = URL(string : URLAddress)!
+//            let task = URLSession.shared.dataTask(with: url) { (data, _, err) in
+//                guard err == nil else {
+//                    emitter.onError(err!)
+//                    return
+//                }
+//
+//                if let data = data , let json = String(data:data,encoding: .utf8) {
+//                    emitter.onNext(json)
+//                }
+//
+//                emitter.onCompleted()
+//            }
+//
+//            task.resume()
+//
+//            return Disposables.create() {
+//                task.cancel()
+//            }
+//        }
     }
     
 }
